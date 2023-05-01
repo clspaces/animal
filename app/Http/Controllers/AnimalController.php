@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Animal;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AnimalResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
+use App\Http\Resources\AnimalCollection;
 class AnimalController extends Controller
 {
     /**
@@ -23,7 +25,7 @@ class AnimalController extends Controller
             return Cache::get($fullUrl);
         }
         $limit=$request->limit ?? 10;
-        $query=Animal::query();
+        $query=Animal::query()->with('type');
         if (isset($request->filters)){
             $filters=explode(',',$request->filters);
             foreach($filters as $key => $filter){
@@ -45,7 +47,7 @@ class AnimalController extends Controller
         }
         $animals=$query->paginate($limit)->appends($request->query());
         return Cache::remember($fullUrl,60,function()use($animals){
-            return response($animals,Response::HTTP_OK);
+            return new AnimalCollection($animals);
         });
         
     }
@@ -64,7 +66,7 @@ class AnimalController extends Controller
     public function store(Request $request)
     {
         $this->validate($request,[
-            'type_id'=>'nullable|integer',
+            'type_id'=>'nullable|exists:types,id',
             'name'=>'required|string|max:255',
             'birthday'=>'nullable|date',
             'area'=>'nullable|string|max:255',
@@ -83,7 +85,7 @@ class AnimalController extends Controller
      */
     public function show(Animal $animal)
     {
-        return response($animal,Response::HTTP_OK);
+        return new AnimalResource($animal);
     }
 
     /**
@@ -100,7 +102,7 @@ class AnimalController extends Controller
     public function update(Request $request, Animal $animal)
     {
         $this->validate($request,[
-            'type_id'=>'nullable|integer',
+            'type_id'=>'nullable|exists:types,id',
             'name'=>'required|string|max:255',
             'birthday'=>'nullable|date',
             'area'=>'nullable|string|max:255',
